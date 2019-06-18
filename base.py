@@ -1,6 +1,6 @@
 from torch.optim import Adam
 from torch import tensor, arange, stack, isnan, tanh, rand
-from torch.nn import Module, Linear
+from torch.nn import Module, Linear, MSELoss
 from torch.nn.functional import softplus, elu
 from torch.distributions.normal import Normal
 from random import random
@@ -21,12 +21,12 @@ def gather(feeds, gamma=0.99):  # input list
     for feed in feeds[::-1]:
         V = feed+gamma*V
         values.insert(0, V)
-    return tensor(values)
+    return values
 
 def calvalues(rewards, gamma=0.99, normalized=False):
     values=gather(rewards,gamma)
     if normalized:
-        values=normalize(values)
+        values=normalize(tensor(values))
     return values
 
 def totalvalue(rewards, gamma=0.99):
@@ -71,6 +71,11 @@ class Model(Module):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+    def optimize1(self,a,b):
+        loss_func = MSELoss(reduce = True,size_average = True)
+        loss=loss_func(self(a),b)
+        self.optimize(loss)
 
 
 class Car:
