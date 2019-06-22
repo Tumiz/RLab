@@ -1,5 +1,7 @@
 import gym
-from ..base import Model,normalsample,totalvalue,calvalues,gather
+import sys
+sys.path.append("../base/")
+from functions import Model,normalsample,totalvalue,calvalues,gather
 from torch import tensor
 from torch.optim import Adam
 from numpy import array,zeros,linalg
@@ -10,21 +12,20 @@ viz=visdom.Visdom()
 class Agent():
     def __init__(self):
         self.m=Model(2,2)
-        self.rewards=[]
         self.probs=[]
+        self.score=0
+        self.steps=0
 
     def select_action(self,state):
         mu,sigma=self.m(tensor(state).float())
         a, prob=normalsample(mu,sigma)
         self.probs.append(prob)
-        # print(prob)
         return array([a])
 
     def optimize(self):
-        loss=sum(calvalues(self.rewards,gamma=0.99,normalized=True))*sum(self.probs)
+        loss=self.score/self.steps*-sum(self.probs)*10
         # print(loss)
         self.m.optimize(loss)
-        self.rewards=[]
         self.probs=[]
         return loss.item()
 
@@ -35,24 +36,24 @@ win=viz.line([0])
 
 for j in count(1):
     state=env.reset()
-    bestscore=state[0]
+    agent.score=state[0]
     besttime=0
-    for i in range(1000):
+    for t in range(1000):
         action=agent.select_action(state)
         state, reward, done, _ = env.step(action)
-        if bestscore<state[0]:
-            bestscore=state[0]
-            besttime=i
-        reward=linalg.norm(state-array([0.45,0]))
-        agent.rewards.append(reward)
+        if agent.score<state[0]:
+            agent.score=state[0]
+            besttime=t
         # env.render()
         if done:
             break
-    scores.append(bestscore)
+    agent.steps=t
+    agent.optimize()
+    scores.append(agent.score)
     if j%10==0:   
         s=tensor(scores).mean().item()
         scores.clear()
         viz.line(X=[j],Y=[s],update="append",win=win)
-    print("episode "+str(j)+" best "+str(bestscore)+" in "+str(i)+" steps")
+    print("episode "+str(j)+" best "+str(agent.score)+" in "+str(t)+" steps")
 
 
