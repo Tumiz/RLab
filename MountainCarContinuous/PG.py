@@ -1,7 +1,5 @@
 import gym
-import sys
-sys.path.append("../base/")
-from functions import Model,normalsample,totalvalue,calvalues,gather
+from rlab import Model,normalsample,factors
 from torch import tensor
 from torch.optim import Adam
 from numpy import array,zeros,linalg
@@ -14,7 +12,7 @@ class Agent():
         self.m=Model(2,2)
         self.probs=[]
         self.score=0
-        self.steps=0
+        self.peak=0
 
     def select_action(self,state):
         mu,sigma=self.m(tensor(state).float())
@@ -23,7 +21,12 @@ class Agent():
         return array([a])
 
     def optimize(self):
-        loss=self.score/self.steps*-sum(self.probs)*10
+        steps=len(self.probs)
+        fs=factors(steps,self.peak)
+        wp=0
+        for factor, prob in zip(fs,self.probs):
+            wp+=factor*prob
+        loss=self.score/steps*wp
         # print(loss)
         self.m.optimize(loss)
         self.probs=[]
@@ -37,17 +40,16 @@ win=viz.line([0])
 for j in count(1):
     state=env.reset()
     agent.score=state[0]
-    besttime=0
-    for t in range(1000):
+    agent.peak=0
+    for t in range(1,1000):
         action=agent.select_action(state)
         state, reward, done, _ = env.step(action)
         if agent.score<state[0]:
             agent.score=state[0]
-            besttime=t
+            agent.peak=t
         # env.render()
         if done:
             break
-    agent.steps=t
     agent.optimize()
     scores.append(agent.score)
     if j%10==0:   

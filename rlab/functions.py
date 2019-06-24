@@ -56,6 +56,15 @@ def wraptopi(x):
         x=2*pi+x
     return x
 
+def factors(length,peak):
+    ret=[]
+    for i in range(length):
+        if i<peak:
+            ret.insert(0,pow(0.99,i))
+        else:
+            ret.append(pow(0.99,i-peak-1))
+    return ret
+
 class Model(Module):
     def __init__(self, nin, nout):
         super(Model, self).__init__()
