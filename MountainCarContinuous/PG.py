@@ -22,11 +22,7 @@ class Agent():
 
     def optimize(self):
         steps=len(self.probs)
-        fs=factors(steps,self.peak)
-        wp=0
-        for factor, prob in zip(fs,self.probs):
-            wp+=factor*prob
-        loss=self.score/steps*wp
+        loss=self.score/steps*-sum(self.probs)
         # print(loss)
         self.m.optimize(loss)
         self.probs=[]
@@ -41,7 +37,7 @@ for j in count(1):
     state=env.reset()
     agent.score=state[0]
     agent.peak=0
-    for t in range(1,1000):
+    for t in range(1000):
         action=agent.select_action(state)
         state, reward, done, _ = env.step(action)
         if agent.score<state[0]:

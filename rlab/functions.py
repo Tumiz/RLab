@@ -60,9 +60,11 @@ def factors(length,peak):
     ret=[]
     for i in range(length):
         if i<peak:
-            ret.insert(0,pow(0.99,i))
+            ret.append(pow(0.99,peak-i))
+        elif i==peak:
+            ret.append(1)
         else:
-            ret.append(pow(0.99,i-peak-1))
+            ret.append(pow(0.99,i-peak))
     return ret
 
 class Model(Module):
