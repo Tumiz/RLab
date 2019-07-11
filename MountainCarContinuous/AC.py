@@ -5,12 +5,16 @@ from torch.optim import Adam
 from numpy import array,zeros,linalg
 from itertools import count
 from random import sample,randint
+from subprocess import Popen
+from time import sleep
+
 
 class Agent():
 
     def __init__(self):
         self.m=Model(2,3)
-        self.score=0 
+        self.score=0
+        self.bestscore=-1.2
         self.prob=[]
         self.state=[]
         self.value=[]
@@ -20,35 +24,37 @@ class Agent():
         action, self.prob=normalsample(mu,sigma)
         return array([action])
 
-    def optimize(self,state_):
+    def step_optimize(self,state_):
         _,_,v_=self.m(tensor(state_).float())
         if state_[0]>0.45:
-            T=state_[0]*10
+            r=100
         else:
-            T=state_[0]+0.5*v_
-        loss=-self.prob*(v_-self.value)+abs(T-self.value)
+            r=0
+        value_loss=abs(r +v_-self.value)
+        loss=-self.prob*v_+value_loss
         self.m.optimize(loss)
 
+Popen("visdom")
+sleep(1)
 env=gym.make("MountainCarContinuous-v0")
+print("observation space:",env.observation_space.low,env.observation_space.high)
+print("action_space:",env.action_space.low,env.action_space.high)
 agent=Agent()
 scope=Scope(Scope.line)
 
 for j in count(1):
     agent.state=env.reset()
     agent.score=agent.state[0]
-    if j%100==0:
-        scope1=Scope(Scope.scatter)
     for t in range(1,1000):
         action=agent.select_action()
-        state_, reward, done, _ = env.step(action)
-        if agent.score<state_[0]:
-            agent.score=state_[0]     
-        if j%100==0:
-            scope1.feed([agent.state[0],agent.state[1],agent.value.item()])
-        agent.optimize(state_)
-        agent.state=state_
+        ob, reward, done, _ = env.step(action)
+        if agent.score<ob[0]:
+            agent.score=ob[0]  
+        agent.step_optimize(ob)
+        agent.state=ob
         if done:
             break
+    if agent.bestscore<agent.score:
+        agent.bestscore=agent.score
     scope.feed(agent.score,j,10)
-    print("episode "+str(j)+" best "+str(agent.score)+" in "+str(t)+" steps")
-    # print(agent.m(tensor([0.45,0]))[2].item())
+    print("episode "+str(j)+" best "+str(agent.score)+"/" + str(agent.bestscore)+" in "+str(t)+" steps")
