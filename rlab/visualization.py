@@ -16,9 +16,12 @@ class Scope():
     def feed(self,d,t=-1,samplerate=1):
         if len(self.temp)<samplerate-1:
             self.temp.append(d)
-        else:
+        else:  
+            if self.type==Scope.line:
+                self.data.append(tensor(self.temp).mean().item())
+            elif self.type==Scope.scatter:
+                self.data.append(d)
             self.temp.clear()
-            self.data.append(d)
             if t>=0:
                 self.stamps.append(t)
             else:
@@ -32,4 +35,10 @@ class Scope():
         self.temp.clear()
         self.data.clear()
         self.stamps.clear()
+
+class Map():
+    def __init__(self, *args, **kwargs):
+        self.x=[-1,1]
+        self.y=[-1,1]
+
 
