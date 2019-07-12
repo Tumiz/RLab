@@ -31,7 +31,7 @@ class Agent():
         else:
             r=0
         value_loss=abs(r +v_-self.value)
-        loss=-self.prob*v_+value_loss
+        loss=-self.prob*(v_-1)+value_loss
         self.m.optimize(loss)
 
 Popen("visdom")
