@@ -46,7 +46,7 @@ def normalsample(mu, sigma):
     dist = Normal(mu, softplus(sigma))
     sample = dist.sample().item()
     logprob = dist.log_prob(sample)
-    return sample, logprob
+    return sample, logprob, dist.entropy()
 
 def wraptopi(x):
     x = x - floor(x/(2*pi)) *2 *pi
@@ -148,53 +148,26 @@ class Environment:
         else:
             return 0
 
-class Simulation:
+class Recorder:
+    def __init__(self,stack_length=10,sample_rate=1):
+        self.stack=[]
+        self.stack_length=stack_length
+        self.sample_rate=sample_rate
+        self.tick=0
 
-    def __init__(self):
-        self.env = Environment()
-        self.m = Model(4, 4)
+    def record(self,data):
+        self.tick+=1
+        if self.tick%self.sample_rate==0:
+            if len(self.stack)<=self.stack_length:
+                self.stack.append(data)
+            else:
+                self.stack.pop(0)
 
-    def run(self,times,plotinterval=1000):
-        for i in range(times):
-            rewards=[]
-            probs=[]
-            actions = []
-            states=[]
-            self.env.__init__()
-            while not self.env.done:
-                d=self.m(self.env.state)
-                a_mu, a_sigma = tanh(d[0]),softplus(d[1])
-                a, a_prob = normalsample(a_mu, a_sigma)
-                w_mu, w_sigma = 0.5*tanh(d[2]),softplus(d[3])
-                w, w_prob = normalsample(w_mu, w_sigma)
-                reward = self.env.step(a,w)
-                rewards.append(reward)
-                probs.append(a_prob+w_prob)
-                actions.append([a_mu.item(), a_sigma.item(), w_mu.item(),w_sigma.item()])
-                states.append([self.env.car.v, self.env.car.x, self.env.car.y, self.env.car.h, self.env.state_distance])
+    def mean(self):
+        return tensor(self.stack).mean().item()
 
-            self.m.loss=totalvalue(rewards)*processlogprob(probs)
-            self.m.optimize()
-            if(i%plotinterval==0):
-                viz.line(X=list(range(len(actions))), Y=actions, opts=dict(
-                    legend=["a_mu", "a_sigma","w_mu","w_sigma"]))
-                    
-                viz.line(X=list(range(len(states))), Y=states, opts=dict(legend=["v", "x", "y", "h", "d"]))
+    def max(self):
+        return tensor(self.stack).max().item()
 
-def testcar():
-    car=Car()
-    car.x=-5
-    car.y=-5
-    car.v=1
-    car.w=0.5
-    xs=[]
-    ys=[]
-    for t in range(100):
-        car.step(t*0.01)
-        xs.append(car.x)
-        ys.append(car.y)
-    viz.quiver(X=xs,Y=ys)
-
-# viz.close(win=None)
-# sim=Simulation()
-# sim.run(10001,1000)
+    def size(self):
+        return len(self.stack)

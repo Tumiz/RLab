@@ -1,2 +1,2 @@
-from .functions import Model,normalsample,wraptopi
+from .functions import Model,normalsample,wraptopi,Recorder
 from .visualization import Scope

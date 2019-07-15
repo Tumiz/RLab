@@ -1,5 +1,5 @@
 import gym
-from rlab import Model,normalsample,Scope
+from rlab import Model,normalsample,Scope,Recorder
 from torch import tensor
 from torch.optim import Adam
 from numpy import array,zeros,linalg
@@ -12,49 +12,56 @@ from time import sleep
 class Agent():
 
     def __init__(self):
-        self.m=Model(2,3)
+        self.actor=Model(2,2)
+        self.critic=Model(2,1)
         self.score=0
-        self.bestscore=-1.2
-        self.prob=[]
+        self.tick=0
+        self.logprob=[]
+        self.entropy=[]
         self.state=[]
-        self.value=[]
+        self.scores=Recorder(stack_length=100)
+        self.done=False
 
     def select_action(self):
-        mu,sigma,self.value=self.m(tensor(self.state).float())
-        action, self.prob=normalsample(mu,sigma)
+        self.tick+=1
+        mu,sigma=self.actor(tensor(self.state).float())
+        action, self.prob, self.entropy=normalsample(mu,sigma)
         return array([action])
 
-    def step_optimize(self,state_):
-        _,_,v_=self.m(tensor(state_).float())
-        if state_[0]>0.45:
-            r=100
-        else:
-            r=0
-        value_loss=abs(r +v_-self.value)
-        loss=-self.prob*(v_-1)+value_loss
-        self.m.optimize(loss)
+    def optimize(self,state_):
+        self.done=state_[0]>0.45
+        r=1 if self.done else 0
+        v=self.critic(tensor(self.state).float())
+        v_=self.critic(tensor(state_).float()) if not self.done else tensor(0)
+        value_loss=abs(r+0.99*v_-v)
+        self.critic.optimize(value_loss)
+        # -self.prob*(r+0.99*v_.item())
+        policy_loss=-self.entropy
+        self.actor.optimize(policy_loss)
+        
 
-Popen("visdom")
-sleep(1)
+# Popen("visdom")
+# sleep(1)
 env=gym.make("MountainCarContinuous-v0")
 print("observation space:",env.observation_space.low,env.observation_space.high)
 print("action_space:",env.action_space.low,env.action_space.high)
 agent=Agent()
-scope=Scope(Scope.line)
+scope=Scope(Scope.line,10)
 
 for j in count(1):
     agent.state=env.reset()
     agent.score=agent.state[0]
+    agent.tick=0
     for t in range(1,1000):
         action=agent.select_action()
-        ob, reward, done, _ = env.step(action)
+        ob, _, _, _ = env.step(action)
         if agent.score<ob[0]:
             agent.score=ob[0]  
-        agent.step_optimize(ob)
+        agent.optimize(ob)
         agent.state=ob
-        if done:
+        if agent.done:
             break
-    if agent.bestscore<agent.score:
-        agent.bestscore=agent.score
-    scope.feed(agent.score,j,10)
-    print("episode "+str(j)+" best "+str(agent.score)+"/" + str(agent.bestscore)+" in "+str(t)+" steps")
+    agent.scores.record(agent.score)
+    scope.feed(agent.scores.mean(),j)
+    new_score=" "+str(agent.score) if agent.tick<999 else ""
+    print("episode "+str(j)+" best "+str(agent.score)+" in "+str(t)+" steps"+new_score)
