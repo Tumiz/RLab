@@ -162,6 +162,7 @@ class Recorder:
                 self.stack.append(data)
             else:
                 self.stack.pop(0)
+                self.tick=0
 
     def mean(self):
         return tensor(self.stack).mean().item()
@@ -171,3 +172,7 @@ class Recorder:
 
     def size(self):
         return len(self.stack)
+
+    def clear(self):
+        self.stack=[]
+        self.tick=0
