@@ -155,7 +155,7 @@ class Recorder:
         self.sample_rate=sample_rate
         self.tick=0
 
-    def record(self,data):
+    def append(self,data):
         self.tick+=1
         if self.tick%self.sample_rate==0:
             if len(self.stack)<=self.stack_length:
