@@ -25,12 +25,12 @@ class Agent():
 
     def optimize(self,state_):
         _,_,v=self.m(tensor(self.state).float())
-        if self.done:
+        if not self.done:
             _,_,v_=self.m(tensor(state_).float()) 
         else:
             v_=tensor(0.)
-        td=max(tensor(state_[0]),v_)-v
-        value_loss=abs(td)-0.01*self.prob*td
+        td=max(state_[0],v_)-v
+        value_loss=-max(tensor(state_[0]),v)
         self.m.optimize(value_loss)
         
 
@@ -40,10 +40,11 @@ def run():
     print("action_space:",env.action_space.low,env.action_space.high)
     agent=Agent()
     scope=Scope(Scope.line)
-    scores=Recorder(stack_length=10)
+    scores=Recorder(stack_length=5)
     average_score=0
-    update=True
-    for j in range(200):
+    j=0
+    while average_score<0.45:
+        j+=1
         agent.state=env.reset()
         agent.score=agent.state[0]
         agent.tick=0
@@ -52,19 +53,14 @@ def run():
             ob, _, _, _ = env.step(action)
             agent.score=max(agent.score,ob[0])
             agent.done=agent.score>0.45 or agent.tick>998
-            if update:
-                agent.optimize(ob)
+            agent.optimize(ob)
             agent.state=ob
             if agent.done:
                 break
         scores.append(agent.score)
         average_score=scores.mean()
-        print("["+str(j)+"] "+str(agent.score)+" in "+str(agent.tick)+" steps "+(str(agent.score) if agent.score>0.45 else ""))
-        if average_score>0.45 and update:
-            update=False
-            print("stop",scores.stack)
+        print("["+str(j)+"] "+str(agent.score)+" in "+str(agent.tick)+" steps "+(">0.45 " if agent.score>0.45 else "")+str(round(average_score,2)))
         scope.feed(average_score,j)
         
-
 time=timeit('run()','from __main__ import run',number=1)
 print("Finished after "+str(time)+" s")

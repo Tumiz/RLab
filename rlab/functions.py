@@ -149,7 +149,7 @@ class Environment:
             return 0
 
 class Recorder:
-    def __init__(self,stack_length=10,sample_rate=1):
+    def __init__(self,stack_length=100,sample_rate=1):
         self.stack=[]
         self.stack_length=stack_length
         self.sample_rate=sample_rate
@@ -163,8 +163,9 @@ class Recorder:
                 self.stack.pop(0)
                 self.tick=0
 
-    def mean(self):
-        return tensor(self.stack).mean().item()
+    def mean(self,n=100):# n should not be larger than stack_length
+        n=min(n,len(self.stack))
+        return tensor(self.stack[-n:]).mean().item() if n>0 else tensor(0.)
 
     def max(self):
         return tensor(self.stack).max().item()
