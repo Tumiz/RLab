@@ -1,14 +1,11 @@
 from torch.optim import Adam
-from torch import tensor, arange, stack, isnan, tanh, rand
+from torch import tensor, arange, stack, isnan, tanh, rand, save, load
 from torch.nn import Module, Linear, MSELoss
 from torch.nn.functional import softplus, elu
 from torch.distributions.normal import Normal
 from random import random
 from math import cos, sin, tan, pi, floor
 from visdom import Visdom
-
-# viz = Visdom()
-
 
 def normalize(data):  # input tensor
     ret = (data-data.mean())/(data.std()+1e-10)
@@ -83,75 +80,25 @@ class Model(Module):
         loss.backward()
         self.optimizer.step()
 
-    def optimize1(self,a,b):
-        loss_func = MSELoss(reduce = True,size_average = True)
-        loss=loss_func(self(a),b)
-        self.optimize(loss)
+    def init_to(self, value):
+        self.layer1.weight.data.fill_(value)
+        self.layer1.bias.data.fill_(value)
+        self.layer2.weight.data.fill_(value)
+        self.layer2.bias.data.fill_(value)
 
+    def save(self,path):
+        save(self.state_dict(),path)
 
-class Car:
-    def __init__(self):
-        self.a = 0.
-        self.w = 0.
-        self.t = 0.
-        self.v = 0.
-        self.x = 0.
-        self.y = 0.
-        self.h = 0.
-        # self.plot=viz.line(X=[0],Y=[[self.a,self.v,self.x]])
-
-    def step(self, t):
-        dt=t-self.t
-        vx = self.v*cos(self.h)
-        vy = self.v*sin(self.h)
-        self.x += vx*dt
-        self.y += vy*dt
-        self.v += self.a*dt
-        self.h += self.v/2.7*tan(self.w)*dt
-        self.h = wraptopi(self.h)
-        # viz.line(X=[t],Y=[[self.a,self.v,self.x]],win=self.plot,update='append')
-
-    def reset(self):
-        self.a=0.
-        self.w=0.
-        self.v=0.
-        self.x=0.
-        self.y=0.
-        self.h=0.
-        self.t=0.
-
-    def state(self):
-        return tensor([self.v,self.x,self.y,self.h])
-
-
-class Environment:
-    def __init__(self):
-        self.t = 0.
-        self.car = Car()
-        self.car.x=-5
-        self.car.y=(random()-1)*5
-        self.car.h=random()*pi*0.5
-        self.state=self.car.state()
-        self.state_distance=self.state.norm()
-        self.done = False
-
-    def step(self, a, w):
-        self.car.a = a
-        self.car.w = w
-        self.car.step(self.t)
-        self.t += 0.01
-        self.state = self.car.state()
-        self.state_distance=self.state.norm()
-        if(self.t>0.5 or self.state_distance>30):
-            self.done=True
-            return self.state_distance
-        else:
-            return 0
+    def load(self,path):
+        self.load_state_dict(load(path))
+        self.eval()
+        self.optimizer=Adam(self.parameters())
+        return self
 
 class Recorder:
-    def __init__(self,stack_length=100,sample_rate=1):
+    def __init__(self,size=100,sample_rate=1):
         self.stack=[]
-        self.stack_length=stack_length
+        self.size=size
         self.sample_rate=sample_rate
         self.tick=0
 
@@ -159,7 +106,7 @@ class Recorder:
         self.tick+=1
         if self.tick%self.sample_rate==0:
             self.stack.append(data)
-            if len(self.stack)>self.stack_length:
+            if len(self.stack)>self.size:
                 self.stack.pop(0)
                 self.tick=0
 
@@ -175,4 +122,43 @@ class Recorder:
 
     def clear(self):
         self.stack=[]
+        self.tick=0
+
+    def hist(self):
+        viz=Visdom()
+        viz.histogram(self.stack)
+
+    def plot(self):
+        viz=Visdom()
+        viz.line(self.stack)
+
+class Scope():
+    line=1
+    scatter=2
+    def __init__(self,scope_type=line,sample_rate=1,name=""):
+        self.type=scope_type
+        self.name=name
+        self.tick=0
+        self.sample_rate=sample_rate
+        self.data=[]
+        self.stamps=[]
+        self.viz=Visdom()
+        self.win=self.viz.line(Y=[0],X=[0],opts=dict(title=name))
+    
+    def feed(self,d,t=-1):
+        self.tick+=1
+        if self.tick%self.sample_rate==0:
+            self.data.append(d)
+            if t>=0:
+                self.stamps.append(t)
+            else:
+                self.stamps.append(len(self.stamps))
+            if self.type==Scope.line:
+                self.viz.line(Y=self.data,X=self.stamps,win=self.win,opts=dict(title=self.name))
+            elif self.type==Scope.scatter:
+                self.viz.scatter(self.data,win=self.win,opts=dict(markersize=3,title=self.name))
+
+    def reset(self):
+        self.data.clear()
+        self.stamps.clear()
         self.tick=0
