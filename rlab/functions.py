@@ -41,7 +41,7 @@ def truncatedsample(samplefunc, low, high):
 
 def normalsample(mu, sigma):
     dist = Normal(mu, softplus(sigma))
-    sample = dist.sample().item()
+    sample = dist.sample()
     logprob = dist.log_prob(sample)
     return sample, logprob, dist.entropy()
 
