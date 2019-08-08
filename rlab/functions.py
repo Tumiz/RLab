@@ -81,10 +81,9 @@ class Model(Module):
         self.optimizer.step()
 
     def init_to(self, value):
-        self.layer1.weight.data.fill_(value)
-        self.layer1.bias.data.fill_(value)
-        self.layer2.weight.data.fill_(value)
+        self.layer2.weight.data.fill_(0)
         self.layer2.bias.data.fill_(value)
+        return self
 
     def save(self,path):
         save(self.state_dict(),path)
