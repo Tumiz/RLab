@@ -67,7 +67,7 @@ def factors(length,peak):
 
 def plot(data):#tensor or list
     viz=Visdom()
-    viz.line(data)
+    viz.line(Y=data,X=list(range(len(data))))
 
 def negative_max(data):#return max value when negative step a process
     if type(data) is Tensor:
