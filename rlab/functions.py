@@ -1,5 +1,5 @@
 from torch.optim import Adam
-from torch import tensor, arange, stack, isnan, tanh, rand, save, load
+from torch import tensor, arange, stack, isnan, tanh, rand, save, load, Tensor
 from torch.nn import Module, Linear, MSELoss
 from torch.nn.functional import softplus, elu
 from torch.distributions.normal import Normal
@@ -63,6 +63,21 @@ def factors(length,peak):
             ret.append(1)
         else:
             ret.append(pow(0.99,i-peak))
+    return ret
+
+def plot(data):#tensor or list
+    viz=Visdom()
+    viz.line(data)
+
+def negative_max(data):#return max value when negative step a process
+    if type(data) is Tensor:
+        data=data.tolist()
+    r=data[::-1]
+    m=r[0]
+    ret=[]
+    for i in r:
+        m=max(m,i)
+        ret.insert(0,m)
     return ret
 
 class Model(Module):
