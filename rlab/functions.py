@@ -4,7 +4,7 @@ from torch.nn import Module, Linear, MSELoss
 from torch.nn.functional import softplus, elu
 from torch.distributions.normal import Normal
 from random import random
-from math import cos, sin, tan, pi, floor
+from math import cos, sin, tan, pi, floor, e
 from visdom import Visdom
 
 def normalize(data):  # input tensor
@@ -43,7 +43,8 @@ def normalsample(mu, sigma):
     dist = Normal(mu, softplus(sigma))
     sample = dist.sample()
     logprob = dist.log_prob(sample)
-    return sample, logprob, dist.entropy()
+    entropy = -pow(e,logprob)*logprob
+    return sample, logprob, entropy
 
 def wraptopi(x):
     x = x - floor(x/(2*pi)) *2 *pi
@@ -65,15 +66,20 @@ def factors(length,peak):
     return ret
 
 class Model(Module):
-    def __init__(self, nin, nout):
+    def __init__(self, nin, nout, scale=4, depth=0):
         super(Model, self).__init__()
-        self.layer1 = Linear(nin, nin*nout*4)
-        self.layer2 = Linear(nin*nout*4, nout)
+        self.header = Linear(nin, nin*nout*scale)
+        self.footer = Linear(nin*nout*scale, nout)
+        self.hiddens=[]
+        for i in range(depth):
+            self.hiddens.append(Linear(nin*nout*scale,nin*nout*scale))
         self.optimizer = Adam(self.parameters())
 
     def forward(self, x):
-        x = elu(self.layer1(x))
-        return self.layer2(x)
+        x = elu(self.header(x))
+        for layer in self.hiddens:
+            x=elu(layer(x))
+        return self.footer(x)
 
     def optimize(self,loss):
         self.optimizer.zero_grad()
@@ -81,8 +87,8 @@ class Model(Module):
         self.optimizer.step()
 
     def init_to(self, value):
-        self.layer2.weight.data.fill_(0)
-        self.layer2.bias.data.fill_(value)
+        self.footer.weight.data.fill_(0)
+        self.footer.bias.data.fill_(value)
         return self
 
     def save(self,path):
@@ -130,6 +136,13 @@ class Recorder:
     def plot(self):
         viz=Visdom()
         viz.line(self.stack)
+
+    def save(self,path):
+        save(tensor(self.stack),path)
+
+    def load(self,path):
+        self.stack = load(path).tolist()
+        self.size = len(self.stack)
 
 class Scope():
     line=1
