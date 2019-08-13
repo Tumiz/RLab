@@ -67,7 +67,7 @@ def factors(length,peak):
 
 def plot(data):#tensor or list
     viz=Visdom()
-    viz.line(Y=data,X=list(range(len(data))))
+    return viz.line(Y=data,X=list(range(len(data))))
 
 def negative_max(data):#return max value when negative step a process
     if type(data) is Tensor:
@@ -79,6 +79,19 @@ def negative_max(data):#return max value when negative step a process
         m=max(m,i)
         ret.insert(0,m)
     return ret
+
+class Chart():
+    def __init__(self):
+        self.viz=Visdom()
+        self.win=[]
+        self.count=0
+
+    def plot(self,data):
+        if self.win == []:
+            self.win=self.viz.line(Y=data,X=list(range(len(data))),name=str(self.count))
+        else:
+            self.viz.line(Y=data,X=list(range(len(data))),update='new',name=str(self.count),win=self.win)
+        self.count+=1
 
 class Model(Module):
     def __init__(self, nin, nout, scale=4, depth=0):
