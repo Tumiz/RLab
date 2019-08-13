@@ -80,6 +80,14 @@ def negative_max(data):#return max value when negative step a process
         ret.insert(0,m)
     return ret
 
+def positive_max(data):
+    m=data[0]
+    ret=[]
+    for i in data:
+        m=max(m,i)
+        ret.append(m)
+    return ret
+
 class Chart():
     def __init__(self):
         self.viz=Visdom()
